@@ -1,0 +1,46 @@
+services:
+  github-runner-sysbox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        RUNNER_VERSION: ${RUNNER_VERSION:-2.325.0}
+        RUNNER_HASH: ${RUNNER_HASH:-}
+    container_name: github-actions-runner-sysbox
+    restart: unless-stopped
+    runtime: sysbox-runc  # Use Sysbox runtime instead of privileged mode
+    environment:
+      - GITHUB_OWNER=${GITHUB_OWNER}
+      - GITHUB_REPOSITORY=${GITHUB_REPOSITORY}
+      - GITHUB_TOKEN_FILE=/run/secrets/github_token
+      - RUNNER_NAME=${RUNNER_NAME:-mac-docker-runner}
+      - RUNNER_WORKDIR=${RUNNER_WORKDIR:-_work}
+      - RUNNER_LABELS=${RUNNER_LABELS:-docker,self-hosted,mac,sysbox}
+    secrets:
+      - github_token
+    volumes:
+      # Persist work directory
+      - runner-work:/home/runner/_work
+      # Cache directory
+      - runner-cache:/home/runner/.cache
+    networks:
+      - runner-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+secrets:
+  github_token:
+    file: ../.github_token
+
+volumes:
+  runner-work:
+    driver: local
+  runner-cache:
+    driver: local
+
+networks:
+  runner-network:
+    driver: bridge

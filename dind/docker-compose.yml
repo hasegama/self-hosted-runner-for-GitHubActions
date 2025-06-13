@@ -1,0 +1,52 @@
+services:
+  github-runner-dind:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        RUNNER_VERSION: ${RUNNER_VERSION:-2.325.0}
+        RUNNER_HASH: ${RUNNER_HASH:-}
+    container_name: github-actions-runner-dind
+    restart: unless-stopped
+    privileged: true  # Required for Docker-in-Docker
+    environment:
+      - GITHUB_OWNER=${GITHUB_OWNER}
+      - GITHUB_REPOSITORY=${GITHUB_REPOSITORY}
+      - GITHUB_TOKEN_FILE=/run/secrets/github_token
+      - RUNNER_NAME=${RUNNER_NAME:-mac-docker-runner}
+      - RUNNER_WORKDIR=${RUNNER_WORKDIR:-_work}
+      - RUNNER_LABELS=${RUNNER_LABELS:-docker,self-hosted,mac,dind}
+    secrets:
+      - github_token
+    volumes:
+      # Persist work directory
+      - runner-work:/home/runner/_work
+      # Cache directory
+      - runner-cache:/home/runner/.cache
+      # Docker storage
+      - docker-storage:/var/lib/docker
+    networks:
+      - runner-network
+    security_opt:
+      - apparmor:unconfined  # Required for Docker-in-Docker
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+secrets:
+  github_token:
+    file: ../.github_token
+
+volumes:
+  runner-work:
+    driver: local
+  runner-cache:
+    driver: local
+  docker-storage:
+    driver: local
+
+networks:
+  runner-network:
+    driver: bridge

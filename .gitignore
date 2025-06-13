@@ -1,0 +1,15 @@
+# Environment variables file
+.env
+
+# Token files (NEVER commit these!)
+.github_token
+.runner_registration_token
+*.token
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+.DS_Store
+.claude

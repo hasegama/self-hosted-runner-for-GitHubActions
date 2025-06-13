@@ -56,6 +56,8 @@ RUNNER_VERSION=2.325.0
 
 ### 3. Configure Secure Token
 
+**Option A: Using setup-token script (Recommended)**
+
 ```bash
 ./build_runner.sh setup-token
 ```
@@ -67,6 +69,10 @@ Please enter your GitHub Personal Access Token:
 ```
 
 **Enter the token you copied from Step 1** and press Enter. The token will be securely saved to `.github_token` file.
+
+**Option B: Using GitHub Actions environment variables**
+
+Alternatively, you can set the GitHub Personal Access Token as a repository environment variable named `GH_PAT` in your repository's Actions settings. This method is useful when running the self-hosted runner from within GitHub Actions workflows. The runner will automatically detect and use the `GH_PAT` environment variable with higher priority than the local `.github_token` file.
 
 ### 4. Start Runner
 

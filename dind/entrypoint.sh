@@ -12,19 +12,20 @@ if [[ -z "$GITHUB_REPOSITORY" ]]; then
     exit 1
 fi
 
-# Token will be read from file for security
-if [[ -z "$GITHUB_TOKEN_FILE" ]]; then
-    echo "Error: GITHUB_TOKEN_FILE environment variable is not set"
+# Read PAT with priority: GH_PAT env var > .github_token file > GITHUB_TOKEN_FILE
+if [[ -n "${GH_PAT:-}" ]]; then
+    echo "Using GitHub token from GH_PAT environment variable"
+    GITHUB_PAT="$GH_PAT"
+elif [[ -f "/home/runner/.github_token" ]]; then
+    echo "Using GitHub token from .github_token file"
+    GITHUB_PAT=$(cat "/home/runner/.github_token")
+elif [[ -n "${GITHUB_TOKEN_FILE:-}" ]] && [[ -f "$GITHUB_TOKEN_FILE" ]]; then
+    echo "Using GitHub token from $GITHUB_TOKEN_FILE"
+    GITHUB_PAT=$(cat "$GITHUB_TOKEN_FILE")
+else
+    echo "Error: No GitHub token found. Set GH_PAT environment variable or create .github_token file"
     exit 1
 fi
-
-if [[ ! -f "$GITHUB_TOKEN_FILE" ]]; then
-    echo "Error: Token file not found at $GITHUB_TOKEN_FILE"
-    exit 1
-fi
-
-# Read PAT from file
-GITHUB_PAT=$(cat "$GITHUB_TOKEN_FILE")
 
 # Set runner name (default is hostname)
 RUNNER_NAME=${RUNNER_NAME:-$(hostname)}

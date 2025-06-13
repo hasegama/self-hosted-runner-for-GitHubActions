@@ -3,22 +3,31 @@ set -euo pipefail
 
 # Secure token handling function
 read_token_securely() {
-    local token_source=$1
     local token=""
     
     # Try multiple token sources in order of preference
-    if [[ -n "${GITHUB_TOKEN_FILE:-}" ]] && [[ -f "$GITHUB_TOKEN_FILE" ]]; then
-        # Best: Read from file
+    if [[ -n "${GH_PAT:-}" ]]; then
+        # Priority 1: GH_PAT environment variable from GitHub Actions
+        echo "Using GitHub token from GH_PAT environment variable" >&2
+        token="$GH_PAT"
+    elif [[ -f "/home/runner/.github_token" ]]; then
+        # Priority 2: Local .github_token file
+        echo "Using GitHub token from .github_token file" >&2
+        token=$(cat "/home/runner/.github_token")
+    elif [[ -n "${GITHUB_TOKEN_FILE:-}" ]] && [[ -f "$GITHUB_TOKEN_FILE" ]]; then
+        # Priority 3: Read from specified file
+        echo "Using GitHub token from $GITHUB_TOKEN_FILE" >&2
         token=$(cat "$GITHUB_TOKEN_FILE")
     elif [[ -n "${GITHUB_TOKEN_COMMAND:-}" ]]; then
-        # Good: Execute command to get token (e.g., from secret manager)
+        # Priority 4: Execute command to get token (e.g., from secret manager)
+        echo "Using GitHub token from command" >&2
         token=$(eval "$GITHUB_TOKEN_COMMAND")
     elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
-        # Fallback: Environment variable (less secure)
-        echo "Warning: Using token from environment variable. Consider using GITHUB_TOKEN_FILE instead." >&2
+        # Priority 5: Environment variable (less secure)
+        echo "Warning: Using token from GITHUB_TOKEN environment variable. Consider using GH_PAT or .github_token file instead." >&2
         token="$GITHUB_TOKEN"
     else
-        echo "Error: No token source configured. Set GITHUB_TOKEN_FILE, GITHUB_TOKEN_COMMAND, or GITHUB_TOKEN" >&2
+        echo "Error: No token source configured. Set GH_PAT, create .github_token file, or set GITHUB_TOKEN_FILE" >&2
         exit 1
     fi
     
@@ -109,7 +118,7 @@ echo "Configuring GitHub Actions Runner..."
 unset GITHUB_PAT REG_TOKEN REMOVE_TOKEN
 
 # Clear any token variables from memory
-unset GITHUB_TOKEN GITHUB_TOKEN_FILE GITHUB_TOKEN_COMMAND
+unset GITHUB_TOKEN GITHUB_TOKEN_FILE GITHUB_TOKEN_COMMAND GH_PAT
 
 # Execute runner
 echo "Starting GitHub Actions Runner..."

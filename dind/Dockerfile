@@ -78,6 +78,13 @@ RUN ARCH=$(uname -m) && \
 # Install dependencies
 RUN ./bin/installdependencies.sh
 
+# Create necessary directories with proper permissions
+RUN mkdir -p ${RUNNER_HOME}/_work/_tool && \
+    mkdir -p ${RUNNER_HOME}/_work/_temp && \
+    mkdir -p ${RUNNER_HOME}/_work/_actions && \
+    chown -R runner:runner ${RUNNER_HOME}/_work && \
+    chmod -R 755 ${RUNNER_HOME}/_work
+
 # Create supervisor config
 RUN mkdir -p /var/log/supervisor
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
@@ -89,7 +96,22 @@ RUN chmod +x /entrypoint.sh
 # Volume for docker certs
 VOLUME /certs
 
+# Create startup script that runs supervisord first
+RUN echo '#!/bin/bash\n\
+# Start supervisord in background\n\
+sudo /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf &\n\
+# Wait for Docker daemon to be ready\n\
+while ! docker info >/dev/null 2>&1; do\n\
+    echo "Waiting for Docker daemon..."\n\
+    sleep 1\n\
+done\n\
+# Run the original entrypoint\n\
+exec /entrypoint.sh' > /startup.sh && chmod +x /startup.sh
+
+# Configure sudo for runner user
+RUN echo "runner ALL=(ALL) NOPASSWD: /usr/bin/supervisord" >> /etc/sudoers
+
 # Switch to runner user for runner operations
 USER runner
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/startup.sh"]

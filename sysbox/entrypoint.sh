@@ -23,7 +23,7 @@ read_token_securely() {
     fi
     
     # Validate token format (basic check)
-    if [[ ! "$token" =~ ^gh[ps]_[a-zA-Z0-9]{36}$ ]]; then
+    if [[ ! "$token" =~ ^gh[ps]_[a-zA-Z0-9]{36,}$ ]]; then
         echo "Error: Invalid token format" >&2
         exit 1
     fi
@@ -66,40 +66,47 @@ fi
 
 cd /home/runner
 
+# Get PAT securely
+GITHUB_PAT=$(read_token_securely)
+
+# Get registration token from GitHub API
+echo "Getting registration token from GitHub API..."
+REG_TOKEN=$(curl -s -X POST \
+    -H "Authorization: token $GITHUB_PAT" \
+    -H "Accept: application/vnd.github.v3+json" \
+    "https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPOSITORY}/actions/runners/registration-token" \
+    | jq -r '.token')
+
+if [[ -z "$REG_TOKEN" ]] || [[ "$REG_TOKEN" == "null" ]]; then
+    echo "Error: Failed to get registration token"
+    echo "Check your PAT permissions and repository settings"
+    exit 1
+fi
+
 # Clean up existing configuration
 if [[ -f ".runner" ]]; then
     echo "Removing existing runner configuration..."
-    # Create temporary file for token
-    TOKEN_TEMP=$(mktemp)
-    chmod 600 "$TOKEN_TEMP"
-    read_token_securely > "$TOKEN_TEMP"
-    
-    # Use token from file
-    ./config.sh remove --token "$(cat "$TOKEN_TEMP")" 2>/dev/null || true
-    
-    # Securely delete temporary file
-    shred -vfz -n 3 "$TOKEN_TEMP" 2>/dev/null || rm -f "$TOKEN_TEMP"
+    # Get removal token
+    REMOVE_TOKEN=$(curl -s -X POST \
+        -H "Authorization: token $GITHUB_PAT" \
+        -H "Accept: application/vnd.github.v3+json" \
+        "https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPOSITORY}/actions/runners/remove-token" \
+        | jq -r '.token')
+    ./config.sh remove --token "$REMOVE_TOKEN" 2>/dev/null || true
 fi
 
 # Configure runner
 echo "Configuring GitHub Actions Runner..."
-
-# Create temporary file for token
-TOKEN_TEMP=$(mktemp)
-chmod 600 "$TOKEN_TEMP"
-read_token_securely > "$TOKEN_TEMP"
-
-# Configure with token from file
 ./config.sh --unattended \
     --url "https://github.com/${GITHUB_OWNER}/${GITHUB_REPOSITORY}" \
-    --token "$(cat "$TOKEN_TEMP")" \
+    --token "$REG_TOKEN" \
     --name "${RUNNER_NAME}" \
     --work "${RUNNER_WORKDIR}" \
     --labels "${RUNNER_LABELS}" \
     --replace
 
-# Securely delete temporary file
-shred -vfz -n 3 "$TOKEN_TEMP" 2>/dev/null || rm -f "$TOKEN_TEMP"
+# Clear tokens from memory
+unset GITHUB_PAT REG_TOKEN REMOVE_TOKEN
 
 # Clear any token variables from memory
 unset GITHUB_TOKEN GITHUB_TOKEN_FILE GITHUB_TOKEN_COMMAND

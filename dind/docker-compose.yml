@@ -6,7 +6,7 @@ services:
       args:
         RUNNER_VERSION: ${RUNNER_VERSION:-2.325.0}
         RUNNER_HASH: ${RUNNER_HASH:-}
-    container_name: github-actions-runner-dind
+    container_name: github-actions-runner-dind-${RUNNER_NAME:-mac-docker-runner}
     restart: unless-stopped
     privileged: true  # Required for Docker-in-Docker
     environment:

@@ -84,6 +84,24 @@ Alternatively, you can set the GitHub Personal Access Token as a repository envi
 ./build_runner.sh logs-dind
 ```
 
+**Running Multiple Runners**
+
+You can run multiple self-hosted runners simultaneously by using different `RUNNER_NAME` values:
+
+```bash
+# Start first runner
+RUNNER_NAME=runner-1 ./build_runner.sh start-dind
+
+# Start second runner (in same or different terminal)
+RUNNER_NAME=runner-2 ./build_runner.sh start-dind
+
+# Check logs for specific runner
+./build_runner.sh logs-dind runner-1
+./build_runner.sh logs-dind runner-2
+```
+
+This enables parallel execution of GitHub Actions jobs, significantly improving CI/CD performance.
+
 ### 5. Verify in GitHub
 
 Go to your repository Settings → Actions → Runners to see the connected runner.

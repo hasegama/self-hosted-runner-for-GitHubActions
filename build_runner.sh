@@ -44,16 +44,31 @@ run_docker_compose() {
     local compose_file=$1
     local action_name=$2
     
-    if docker compose -f "$compose_file" --env-file .env up -d --build; then
+    # Save command-line RUNNER_NAME if provided
+    local cli_runner_name="${RUNNER_NAME:-}"
+    
+    # Load environment variables
+    source .env
+    
+    # Restore command-line RUNNER_NAME if it was provided
+    if [[ -n "${cli_runner_name}" ]]; then
+        RUNNER_NAME="${cli_runner_name}"
+    fi
+    
+    # Export RUNNER_NAME for docker-compose
+    export RUNNER_NAME
+    
+    if docker compose -p "runner-${RUNNER_NAME}" -f "$compose_file" --env-file .env up -d --build; then
         echo -e "${GREEN}$action_name started successfully!${NC}"
+        echo -e "${GREEN}Container name: github-actions-runner-$(basename ${compose_file%/*})-${RUNNER_NAME}${NC}"
         
         # Show appropriate log command based on compose file
         case "$compose_file" in
             *"dind"*)
-                echo "To check logs: ./build_runner.sh logs-dind"
+                echo "To check logs: ./build_runner.sh logs-dind ${RUNNER_NAME}"
                 ;;
             *"sysbox"*)
-                echo "To check logs: ./build_runner.sh logs-sysbox"
+                echo "To check logs: ./build_runner.sh logs-sysbox ${RUNNER_NAME}"
                 ;;
         esac
         return 0
@@ -91,12 +106,28 @@ case "$1" in
     
     logs-dind)
         echo -e "${GREEN}Showing DinD logs (Ctrl+C to exit)${NC}"
-        docker compose -f dind/docker-compose.yml --env-file .env logs -f
+        if [[ -n "${2:-}" ]]; then
+            # Show logs for specific runner name
+            runner_name="$2"
+            container_name="github-actions-runner-dind-${runner_name}"
+            docker logs -f "${container_name}"
+        else
+            # Show all DinD logs using compose
+            docker compose -f dind/docker-compose.yml --env-file .env logs -f
+        fi
         ;;
     
     logs-sysbox)
         echo -e "${GREEN}Showing Sysbox logs (Ctrl+C to exit)${NC}"
-        docker compose -f sysbox/docker-compose.yml --env-file .env logs -f
+        if [[ -n "${2:-}" ]]; then
+            # Show logs for specific runner name
+            runner_name="$2"
+            container_name="github-actions-runner-sysbox-${runner_name}"
+            docker logs -f "${container_name}"
+        else
+            # Show all Sysbox logs using compose
+            docker compose -f sysbox/docker-compose.yml --env-file .env logs -f
+        fi
         ;;
     
     setup-token)

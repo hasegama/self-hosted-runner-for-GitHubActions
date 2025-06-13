@@ -6,7 +6,7 @@ services:
       args:
         RUNNER_VERSION: ${RUNNER_VERSION:-2.325.0}
         RUNNER_HASH: ${RUNNER_HASH:-}
-    container_name: github-actions-runner-sysbox
+    container_name: github-actions-runner-sysbox-${RUNNER_NAME:-mac-docker-runner}
     restart: unless-stopped
     runtime: sysbox-runc  # Use Sysbox runtime instead of privileged mode
     environment:
